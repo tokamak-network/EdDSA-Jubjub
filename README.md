@@ -1,1 +1,1 @@
-# EdDSA-Jubjub
+Tokamak redDSA with typescript
