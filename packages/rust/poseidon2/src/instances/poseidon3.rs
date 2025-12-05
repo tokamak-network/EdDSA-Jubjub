@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 use num_bigint::BigInt;
-use num_traits::{Num, Zero};
+use num_traits::Num;
 
 // Import the generic permutation logic.
 // Adjust this path to wherever you put the poseidon_permutation function.
@@ -329,11 +329,11 @@ pub fn poseidon3(inputs: &[BigInt]) -> Result<BigInt, String> {
 
     // Call the generic permutation function
     // r_full: 8, r_partial: 56
-    let result = poseidon_permutation(inputs, 8, 56, &*ROUND_CONSTANTS, &*MDS_MATRIX);
+    let result = poseidon_permutation(inputs, 8, 56, &ROUND_CONSTANTS, &MDS_MATRIX);
 
     // Return the first element of the result state
     result
-        .get(0)
+        .first()
         .cloned()
         .ok_or_else(|| "Permutation returned empty result".to_string())
 }

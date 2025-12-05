@@ -460,7 +460,7 @@ lazy_static! {
         .iter()
         .map(|hex| {
             BigInt::from_str_radix(hex, 16)
-                .expect(&format!("Invalid hex in round constants: {}", hex))
+                .unwrap_or_else(|_| panic!("Invalid hex in round constants: {}", hex))
         })
         .collect();
     pub static ref MDS_MATRIX: Vec<Vec<BigInt>> = MDS_MATRIX_HEX
@@ -490,11 +490,11 @@ pub fn poseidon5(inputs: &[BigInt]) -> Result<BigInt, String> {
 
     // Call the generic permutation function
     // r_full: 8, r_partial: 57
-    let result = poseidon_permutation(inputs, 8, 57, &*ROUND_CONSTANTS, &*MDS_MATRIX);
+    let result = poseidon_permutation(inputs, 8, 57, &ROUND_CONSTANTS, &MDS_MATRIX);
 
     // Return the first element of the result state
     result
-        .get(0)
+        .first()
         .cloned()
         .ok_or_else(|| "Permutation returned empty result".to_string())
 }

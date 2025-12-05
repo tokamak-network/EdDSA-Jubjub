@@ -182,11 +182,11 @@ pub fn poseidon1(inputs: &[BigInt]) -> Result<BigInt, String> {
 
     // Call the generic permutation function
     // r_full: 8, r_partial: 56
-    let result = poseidon_permutation(inputs, 8, 56, &*ROUND_CONSTANTS, &*MDS_MATRIX);
+    let result = poseidon_permutation(inputs, 8, 56, &ROUND_CONSTANTS, &MDS_MATRIX);
 
     // Return the first element of the result state
     result
-        .get(0)
+        .first()
         .cloned()
         .ok_or_else(|| "Permutation returned empty result".to_string())
 }

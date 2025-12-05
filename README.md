@@ -71,6 +71,45 @@ The verification process is designed to be secure on a curve with a cofactor.
 1.  **Range Check**: The verifier first checks that the signature scalar `s` is within the valid range `[0, n-1]`.
 2.  **Cofactored Verification**: Instead of checking the standard EdDSA equation `s * G == R + c * Pk`, this implementation uses **cofactored verification**. Both sides of the equation are multiplied by the cofactor (8), resulting in the check: `8 * s * G == 8 * R + 8 * c * Pk`. This algebraically eliminates any small-subgroup components from the public key or nonce point, preventing attacks that could otherwise lead to signature forgery.
 
+### Usage
+
+Here is a quick example of how to use the `eddsa` crate for key generation, signing, and verification.
+
+```rust
+use eddsa::{EdDSAPrivateKey, EdDSAPublicKey, EdDSASignature};
+use rand::thread_rng;
+
+fn main() {
+    let mut rng = thread_rng();
+
+    // 1. Generate a random private key
+    let sk = EdDSAPrivateKey::random(&mut rng);
+
+    // 2. Derive the public key
+    let pk = sk.public();
+
+    // 3. Sign a message (byte slice)
+    let message = b"Hello, JubJub!";
+    let signature = sk.sign_bytes(message);
+
+    // 4. Verify the signature
+    let is_valid = pk.verify(message, &signature);
+    assert!(is_valid);
+
+    // 5. Serialization & Deserialization
+    
+    // Public Key
+    let pk_bytes = pk.to_compressed_bytes().expect("Failed to serialize PK");
+    let pk_decoded = EdDSAPublicKey::from_compressed_bytes(&pk_bytes).expect("Failed to deserialize PK");
+    assert_eq!(pk, pk_decoded);
+
+    // Signature
+    let sig_bytes = signature.to_compressed_bytes().expect("Failed to serialize Sig");
+    let sig_decoded = EdDSASignature::from_compressed_bytes(&sig_bytes).expect("Failed to deserialize Sig");
+    assert_eq!(signature, sig_decoded);
+}
+```
+
 ### `poseidon2` Crate
 
 This crate implements the Poseidon hash function, which is optimized for zero-knowledge proof systems. All hashing operations are performed over the BLS12-381 scalar field, which is a critical requirement for the security of the EdDSA-JubJub scheme.

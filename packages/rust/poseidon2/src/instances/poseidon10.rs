@@ -1,7 +1,7 @@
 use crate::instances::poseidon_permutation;
 use lazy_static::lazy_static;
 use num_bigint::BigInt;
-use num_traits::{Num, Zero};
+use num_traits::Num;
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -895,10 +895,10 @@ pub fn poseidon10(inputs: &[BigInt]) -> Result<BigInt, String> {
         ));
     }
 
-    let result = poseidon_permutation(inputs, 8, 57, &*ROUND_CONSTANTS, &*MDS_MATRIX);
+    let result = poseidon_permutation(inputs, 8, 57, &ROUND_CONSTANTS, &MDS_MATRIX);
 
     result
-        .get(0)
+        .first()
         .cloned()
         .ok_or_else(|| "Permutation returned empty result".to_string())
 }

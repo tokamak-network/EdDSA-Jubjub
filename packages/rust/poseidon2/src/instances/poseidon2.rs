@@ -248,10 +248,10 @@ pub fn poseidon2(inputs: &[BigInt]) -> Result<BigInt, String> {
         ));
     }
 
-    let result = poseidon_permutation(inputs, 8, 56, &*ROUND_CONSTANTS, &*MDS_MATRIX);
+    let result = poseidon_permutation(inputs, 8, 56, &ROUND_CONSTANTS, &MDS_MATRIX);
 
     result
-        .get(0)
+        .first()
         .cloned()
         .ok_or_else(|| "Permutation returned empty result".to_string())
 }

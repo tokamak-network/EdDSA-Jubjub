@@ -1,37 +1,40 @@
-# macOS settings file 
 .DS_Store
 
-# Contains all your dependencies
 node_modules
 
-# Replace as required with your build location
-/build
+lib
 
-# Deal with environment files
-.env
-.env.*
+target
 
-# We'll allow an example .env file which can be copied
-!.env.example
-
-# Coverage directory used by testing tools
-coverage
-
-# Visual Studio Code configuration
-.vscode/
+.idea
+Cargo.lock
+package-lock.json
 
 
-# npm and yarn debug logs
-npm-debug.log*
+yarn-error.log
 yarn-debug.log*
-yarn-error.log*
-
-# next.js
-.next
-
-# sveltekit
-/.svelte-kit
-vite.config.js.timestamp-*
-vite.config.ts.timestamp-*
+npm-debug.log*
+.vscode
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 dist
-.husky
+build
+.cache
+.next
+out
+coverage
+logs
+*.log
+* .tmp
+*.temp
+temp/
+.tmp/
+temp/
+*.swp
+*~
+* .swo
+.swo
+*.bak

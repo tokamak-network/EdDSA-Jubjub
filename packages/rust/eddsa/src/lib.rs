@@ -1,6 +1,8 @@
+use ark_ec::twisted_edwards::TECurveConfig;
 use ark_ec::{AffineRepr, CurveGroup};
-use ark_ff::{AdditiveGroup, BigInteger, PrimeField, Zero};
-use ark_serialize::CanonicalSerialize;
+use ark_ed_on_bls12_381::EdwardsConfig;
+use ark_ff::{AdditiveGroup, BigInteger, Field, One, PrimeField, Zero};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use num_bigint::BigUint;
 use poseidon2::poseidon_btree_hasher;
 use rand::{CryptoRng, Rng};
@@ -132,6 +134,13 @@ impl EdDSAPrivateKey {
 
         EdDSASignature { r: nonce_point, s }
     }
+
+    /// Signs a message (arbitrary bytes) by converting it to a field element.
+    /// The message bytes are interpreted as a big-endian integer modulo equations.
+    pub fn sign_bytes(&self, message: &[u8]) -> EdDSASignature {
+        let msg_field = BaseField::from_be_bytes_mod_order(message);
+        self.sign(msg_field)
+    }
 }
 
 /// A public key for EdDSA over BabyJubjub.
@@ -148,7 +157,7 @@ impl EdDSAPublicKey {
     /// This uses **Cofactored Verification**. BabyJubjub has a cofactor of 8.
     /// Multiplying the entire equation by 8 ensures the check holds even if points
     /// have small-subgroup components, enabling batch verification compatibility.
-    pub fn verify(&self, message: BaseField, signature: &EdDSASignature) -> bool {
+    pub fn verify_field(&self, message: BaseField, signature: &EdDSASignature) -> bool {
         // 1. Check Range: s < L
         // Prevents signature malleability where s' = s + L would otherwise be valid.
         let s_biguint: BigUint = signature.s.into();
@@ -183,6 +192,11 @@ impl EdDSAPublicKey {
         result.is_zero()
     }
 
+    pub fn verify(&self, message: &[u8], signature: &EdDSASignature) -> bool {
+        let msg_field = BaseField::from_be_bytes_mod_order(message);
+        self.verify_field(msg_field, signature)
+    }
+
     pub fn to_compressed_bytes(&self) -> eyre::Result<[u8; 32]> {
         let mut buf = Vec::new();
         self.pk
@@ -206,6 +220,12 @@ impl EdDSAPublicKey {
             )));
         }
         Ok(bytes)
+    }
+
+    pub fn from_compressed_bytes(bytes: &[u8]) -> eyre::Result<Self> {
+        let pk = deserialize_point_manual(bytes)
+            .map_err(|e| eyre::eyre!("Deserialization failed: {}", e))?;
+        Ok(Self { pk })
     }
 }
 
@@ -241,6 +261,56 @@ impl EdDSASignature {
         }
         Ok(bytes)
     }
+
+    pub fn from_compressed_bytes(bytes: &[u8]) -> eyre::Result<Self> {
+        if bytes.len() != 64 {
+            return Err(eyre::eyre!("Invalid signature length"));
+        }
+        let r_bytes = &bytes[0..32];
+        let s_bytes = &bytes[32..64];
+
+        let r = deserialize_point_manual(r_bytes)
+            .map_err(|e| eyre::eyre!("Failed to deserialize R: {}", e))?;
+        let s = ScalarField::deserialize_compressed(s_bytes)
+            .map_err(|e| eyre::eyre!("Failed to deserialize s: {}", e))?;
+
+        Ok(Self { r, s })
+    }
+}
+
+fn deserialize_point_manual(bytes: &[u8]) -> eyre::Result<Affine> {
+    if bytes.len() != 32 {
+        return Err(eyre::eyre!("Invalid point length"));
+    }
+    let mut temp = [0u8; 32];
+    temp.copy_from_slice(bytes);
+    let sign = (temp[31] >> 7) & 1 == 1;
+    temp[31] &= 0x7F;
+
+    let y = BaseField::deserialize_compressed(&temp[..])
+        .map_err(|e| eyre::eyre!("Failed to deserialize Y: {:?}", e))?;
+
+    // x^2 = (y^2 - 1) / (d*y^2 + a)
+    let y2 = y.square();
+    let one = BaseField::one();
+    let num = y2 - one;
+    let den = EdwardsConfig::COEFF_D * y2 - EdwardsConfig::COEFF_A;
+
+    let x2 = den
+        .inverse()
+        .map(|inv| num * inv)
+        .ok_or(eyre::eyre!("Inverse failed"))?;
+    let mut x = x2.sqrt().ok_or(eyre::eyre!("Sqrt failed"))?;
+
+    if x.into_bigint().is_odd() != sign {
+        x = -x;
+    }
+
+    let p = Affine::new(x, y);
+    if !p.is_on_curve() {
+        return Err(eyre::eyre!("Point not on curve"));
+    }
+    Ok(p)
 }
 
 /// Computes the Fiat-Shamir challenge.
@@ -300,12 +370,15 @@ mod tests {
         let signature = sk.sign(message);
 
         // 4. Verify Positive Case
-        assert!(pk.verify(message, &signature), "Signature should be valid");
+        assert!(
+            pk.verify_field(message, &signature),
+            "Signature should be valid"
+        );
 
         // 5. Verify Negative Case (Wrong Message)
         let bad_message = BaseField::rand(&mut rng);
         assert!(
-            !pk.verify(bad_message, &signature),
+            !pk.verify_field(bad_message, &signature),
             "Signature should fail for wrong message"
         );
 
@@ -313,7 +386,7 @@ mod tests {
         let bad_sk = EdDSAPrivateKey::random(&mut rng);
         let bad_pk = bad_sk.public();
         assert!(
-            !bad_pk.verify(message, &signature),
+            !bad_pk.verify_field(message, &signature),
             "Signature should fail for wrong key"
         );
     }
@@ -336,6 +409,66 @@ mod tests {
         println!("let public_key= {:?}", hex::encode(pk_bytes));
         println!("let signature = {:?}", hex::encode(sig_bytes));
     }
+
+    #[test]
+    fn test_deserialization_roundtrip_methods() {
+        let mut rng = rand::thread_rng();
+        let sk = EdDSAPrivateKey::random(&mut rng);
+        let pk = sk.public();
+        let msg = BaseField::rand(&mut rng);
+        let sig = sk.sign(msg);
+
+        // Public Key Roundtrip
+        let pk_bytes = pk.to_compressed_bytes().unwrap();
+        let pk_decoded =
+            EdDSAPublicKey::from_compressed_bytes(&pk_bytes).expect("PK decoding failed");
+        assert_eq!(pk, pk_decoded);
+
+        // Signature Roundtrip
+        let sig_bytes = sig.to_compressed_bytes().unwrap();
+        let sig_decoded =
+            EdDSASignature::from_compressed_bytes(&sig_bytes).expect("Sig decoding failed");
+        assert_eq!(sig, sig_decoded);
+        println!("Deserialization roundtrip successful");
+    }
+    #[test]
+    fn test_sign_bytes() {
+        let mut rng = rand::thread_rng();
+        let sk = EdDSAPrivateKey::random(&mut rng);
+        let pk = sk.public();
+
+        let message_bytes = b"Hello, world!";
+        let sig = sk.sign_bytes(message_bytes);
+
+        // Manually verify to ensure the conversion is consistent
+        let expected_msg_field = BaseField::from_be_bytes_mod_order(message_bytes);
+        assert!(
+            pk.verify_field(expected_msg_field, &sig),
+            "Bytes signature verification failed"
+        );
+    }
+
+    #[test]
+    fn test_verify_bytes() {
+        let mut rng = rand::thread_rng();
+        let sk = EdDSAPrivateKey::random(&mut rng);
+        let pk = sk.public();
+
+        let message_bytes = b"Hello, world!";
+        let sig = sk.sign_bytes(message_bytes);
+
+        assert!(
+            pk.verify(message_bytes, &sig),
+            "Bytes signature verification failed"
+        );
+
+        let bad_message_bytes = b"Goodbye, world!";
+        assert!(
+            !pk.verify(bad_message_bytes, &sig),
+            "Bad bytes signature verification should fail"
+        );
+    }
+
     #[test]
     fn test_empty_input() {
         let input = b"";

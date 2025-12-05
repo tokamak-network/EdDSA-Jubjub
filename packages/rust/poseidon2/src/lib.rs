@@ -1,10 +1,8 @@
-use num_traits::{Num, Pow};
 pub mod instances;
 
 use crate::instances::PRIME;
 use crate::instances::poseidon2::poseidon2;
-use num_bigint::{BigInt, BigUint, Sign};
-use num_traits::{One, Zero};
+use num_bigint::{BigInt, Sign};
 // Needed for from_str_radix
 // Standard Poseidon Arity
 const POSEIDON_INPUTS: usize = 2;
@@ -96,10 +94,7 @@ pub fn poseidon_btree_hasher(msg: &[u8]) -> Result<Vec<u8>, String> {
     // We chunk by 32 bytes (256 bits).
     // Note: BN254 is ~254 bits. 32 bytes (256 bits) might overflow.
     // `bytes_to_field_element` handles the modulo reduction.
-    let words: Vec<BigInt> = msg
-        .chunks(32)
-        .map(|chunk| bytes_to_field_element(chunk))
-        .collect();
+    let words: Vec<BigInt> = msg.chunks(32).map(bytes_to_field_element).collect();
 
     // The Folding Closure
     let fold = |arr: &[BigInt]| -> Result<Vec<BigInt>, String> {
@@ -108,12 +103,12 @@ pub fn poseidon_btree_hasher(msg: &[u8]) -> Result<Vec<u8>, String> {
         }
 
         // Integer math for ceiling division: (num + divisor - 1) / divisor
-        let n1x_chunks = (arr.len() + POSEIDON_INPUTS - 1) / POSEIDON_INPUTS;
+        let n1x_chunks = arr.len().div_ceil(POSEIDON_INPUTS);
         let n_padded_children = n1x_chunks * POSEIDON_INPUTS;
 
         // Optimization: Check if we can do a 2-layer compress (4 inputs -> 1 output)
         // Checks if total padded children is divisible by 4 (assuming POSEIDON_INPUTS=2)
-        let mode2x = n_padded_children % (POSEIDON_INPUTS * POSEIDON_INPUTS) == 0;
+        let mode2x = n_padded_children.is_multiple_of(POSEIDON_INPUTS * POSEIDON_INPUTS);
 
         let (place_function, n_children_per_hash) = if mode2x {
             (

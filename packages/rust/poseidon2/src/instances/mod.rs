@@ -31,7 +31,7 @@ pub fn poseidon_permutation(
     inputs: &[BigInt],
     r_full: usize,
     r_partial: usize,
-    round_constants: &Vec<BigInt>,
+    round_constants: &[BigInt],
     mds: &[Vec<BigInt>],
 ) -> Vec<BigInt> {
     let t = inputs.len() + 1;
@@ -48,22 +48,22 @@ pub fn poseidon_permutation(
     // --- First Full Rounds ---
     for _ in 0..r_full_half {
         // Add Round Constants
-        for j in 0..t {
-            state[j] = (&state[j] + &round_constants[round_constants_counter]) % &*PRIME;
+        for item in state.iter_mut().take(t) {
+            *item = (&*item + &round_constants[round_constants_counter]) % &*PRIME;
             round_constants_counter += 1;
         }
 
         // S-box: state[j] ^ 5 % PRIME
-        for j in 0..t {
-            state[j] = state[j].modpow(&five, &PRIME);
+        for item in state.iter_mut().take(t) {
+            *item = item.modpow(&five, &PRIME);
         }
 
         // Mix Layer
-        let mut matrix_output = Vec::with_capacity(t);
-        for j in 0..t {
+        let mut matrix_output: Vec<BigInt> = Vec::with_capacity(t);
+        for row in mds.iter().take(t) {
             let mut result = BigInt::zero();
-            for k in 0..t {
-                let product = &mds[j][k] * &state[k];
+            for (k, item) in state.iter().enumerate().take(t) {
+                let product = &row[k] * item;
                 result = (result + product) % &*PRIME;
             }
             matrix_output.push(result);
@@ -74,8 +74,8 @@ pub fn poseidon_permutation(
     // --- Partial Rounds ---
     for _ in 0..r_partial {
         // Add Round Constants
-        for j in 0..t {
-            state[j] = (&state[j] + &round_constants[round_constants_counter]) % &*PRIME;
+        for item in state.iter_mut().take(t) {
+            *item = (&*item + &round_constants[round_constants_counter]) % &*PRIME;
             round_constants_counter += 1;
         }
 
@@ -83,11 +83,11 @@ pub fn poseidon_permutation(
         state[0] = state[0].modpow(&five, &PRIME);
 
         // Mix Layer
-        let mut matrix_output = Vec::with_capacity(t);
-        for j in 0..t {
+        let mut matrix_output: Vec<BigInt> = Vec::with_capacity(t);
+        for row in mds.iter().take(t) {
             let mut result = BigInt::zero();
-            for k in 0..t {
-                let product = &mds[j][k] * &state[k];
+            for (k, item) in state.iter().enumerate().take(t) {
+                let product = &row[k] * item;
                 result = (result + product) % &*PRIME;
             }
             matrix_output.push(result);
@@ -98,22 +98,22 @@ pub fn poseidon_permutation(
     // --- Second Full Rounds ---
     for _ in 0..r_full_half {
         // Add Round Constants
-        for j in 0..t {
-            state[j] = (&state[j] + &round_constants[round_constants_counter]) % &*PRIME;
+        for item in state.iter_mut().take(t) {
+            *item = (&*item + &round_constants[round_constants_counter]) % &*PRIME;
             round_constants_counter += 1;
         }
 
         // S-box: state[j] ^ 5 % PRIME
-        for j in 0..t {
-            state[j] = state[j].modpow(&five, &PRIME);
+        for item in state.iter_mut().take(t) {
+            *item = item.modpow(&five, &PRIME);
         }
 
         // Mix Layer
-        let mut matrix_output = Vec::with_capacity(t);
-        for j in 0..t {
+        let mut matrix_output: Vec<BigInt> = Vec::with_capacity(t);
+        for row in mds.iter().take(t) {
             let mut result = BigInt::zero();
-            for k in 0..t {
-                let product = &mds[j][k] * &state[k];
+            for (k, item) in state.iter().enumerate().take(t) {
+                let product = &row[k] * item;
                 result = (result + product) % &*PRIME;
             }
             matrix_output.push(result);
