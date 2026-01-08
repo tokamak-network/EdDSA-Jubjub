@@ -1,10 +1,10 @@
-import {jubjub} from '@noble/curves/misc';
-import {bytesToHex, numberToBytesBE, bytesToNumberBE} from '@noble/curves/abstract/utils';
-import {webcrypto as crypto} from 'node:crypto';
+import { jubjub } from '@noble/curves/misc';
+import { bytesToHex, numberToBytesBE, bytesToNumberBE } from '@noble/curves/utils';
+import { webcrypto as crypto } from 'node:crypto';
 import assert from 'node:assert/strict';
-import {keccak_256} from '@noble/hashes/sha3';
+import { keccak_256 } from '@noble/hashes/sha3';
 
-import {sha512} from "@noble/hashes/sha2";
+import { sha512 } from "@noble/hashes/sha2";
 
 import {
     poseidon1, poseidon2, poseidon3, poseidon4, poseidon5,
@@ -56,7 +56,7 @@ export function keccak(...chunks: Uint8Array[]): bigint {
 }
 
 // Split a byte array into 32-byte chunks (no padding; last limb may be <32B)
-export  function splitTo32(b: Uint8Array): Uint8Array[] {
+export function splitTo32(b: Uint8Array): Uint8Array[] {
     const out: Uint8Array[] = [];
     for (let i = 0; i < b.length; i += 32) out.push(b.subarray(i, i + 32));
     // If you prefer zero-padding the last limb to 32B, do it here instead.
@@ -144,7 +144,7 @@ export function generateSecretSeed(): Uint8Array {
     const sk = new Uint8Array(32);
     crypto.getRandomValues(sk);
     // avoid s==0
-    if ( mod_r(bytesToNumberBE(sk)) === 0n) sk[0] ^= 1;
+    if (mod_r(bytesToNumberBE(sk)) === 0n) sk[0] ^= 1;
     return sk;
 }
 
@@ -167,12 +167,12 @@ export function deriveKeysFromSeed(skBytes: Uint8Array) {
     const s = mod_r(bytesToNumberBE(h.slice(0, 32)));
     if (s === 0n) throw new Error("invalid secret key");
     const nonceKey = h.slice(32, 64); // kept secret; not the same as pk
-    return {s, nonceKey};
+    return { s, nonceKey };
 }
 
 // ---- RedDSA-flavored sign/verify over Jubjub + Poseidon(t=5) ----
 export function signPoseidon(msg: Uint8Array, skSeed: Uint8Array) {
-    const {s, nonceKey} = deriveKeysFromSeed(skSeed);
+    const { s, nonceKey } = deriveKeysFromSeed(skSeed);
 
     const A = G.multiply(s);
     const Axbytes = numberToBytesBE(A.x, 32);
@@ -191,7 +191,7 @@ export function signPoseidon(msg: Uint8Array, skSeed: Uint8Array) {
     const S = add(r, mul(e, s));
     const Sbytes = numberToBytesBE(S, 32);
 
-    return {R: R.toBytes(), S: Sbytes};
+    return { R: R.toBytes(), S: Sbytes };
 }
 
 export function verifyPoseidon(
@@ -226,12 +226,12 @@ export function verifyPoseidon(
     }
 }
 
-console.log("F_p=0x%s",p.toString(16));
-console.log("F_r=0x%s",n.toString(16));
+console.log("F_p=0x%s", p.toString(16));
+console.log("F_r=0x%s", n.toString(16));
 
 // ---- Smoke test ----
 const skSeed = generateSecretSeed();
-let {s, nonceKey} = deriveKeysFromSeed(skSeed);
+let { s, nonceKey } = deriveKeysFromSeed(skSeed);
 const pk = getPublicKey(s);
 const msg = new TextEncoder().encode('Hello from TokamakAuth! Hello from TokamakAuth! Hello from TokamakAuth! Hello from TokamakAuth!');
 

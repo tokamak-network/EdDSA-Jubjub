@@ -1,5 +1,5 @@
 import {jubjub} from '@noble/curves/misc';
-import {bytesToHex, numberToBytesBE, bytesToNumberBE} from '@noble/curves/abstract/utils';
+import {bytesToHex, numberToBytesBE, bytesToNumberBE} from '@noble/curves/utils';
 import {webcrypto as crypto} from 'node:crypto';
 import assert from 'node:assert/strict';
 import {keccak_256} from '@noble/hashes/sha3';
