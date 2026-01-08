@@ -14,7 +14,7 @@ import {
 } from './reddsa_jubjub_bls.js';
 
 import { keccak_256 } from '@noble/hashes/sha3';
-import { bytesToNumberBE, numberToBytesBE, bytesToHex } from '@noble/curves/abstract/utils';
+import { bytesToNumberBE, numberToBytesBE, bytesToHex } from '@noble/curves/utils';
 import assert from 'node:assert/strict';
 import {poseidon1, poseidon16, poseidon2, poseidon4} from "poseidon-bls12381";
 

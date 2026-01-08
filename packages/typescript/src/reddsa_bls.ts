@@ -1,12 +1,12 @@
 import { bls12_381 } from '@noble/curves/bls12-381';
-import { bytesToHex, numberToBytesBE, bytesToNumberBE } from '@noble/curves/abstract/utils';
+import { bytesToHex, numberToBytesBE, bytesToNumberBE } from '@noble/curves/utils';
 import { webcrypto as crypto } from 'node:crypto';
 import assert from 'node:assert';
 import { sha512} from "@noble/hashes/sha2";
 import { poseidon4 } from "poseidon-bls12381";
 
 // ---- Curve constants ----
-const G = bls12_381.G1.ProjectivePoint.BASE;
+const G = bls12_381.G1.Point.BASE;
 const n: bigint = bls12_381.G1.Point.CURVE().n;
 const DST_NONCE = new TextEncoder().encode("TokamakAuth-EDDSA-POSEIDON-NONCE-v1");
 const DST_CHALLENGE = new TextEncoder().encode("TokamakAuth-EDDSA-POSEIDON-CHALLENGE-v1");
